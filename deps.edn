@@ -10,7 +10,7 @@
  :deps {io.github.kotoba-lang/security {:git/url "https://github.com/kotoba-lang/security.git"
                                         :git/sha "b4ff9d8a56263030bc92539b101e1eeb2dbfce39"}
         io.github.kotoba-lang/abi {:git/url "https://github.com/kotoba-lang/abi.git"
-                                   :git/sha "e63fb3086a41b5709e7f778467f8ce394dc391ee"}
+                                   :git/sha "32ee84b2efc92478c846629c8d8319280eed506c"}
         io.github.kotoba-lang/kotobase {:git/url "https://github.com/kotoba-lang/kotobase.git"
                                         :git/sha "142f3f7ef8208a270e21d9cce748ceffe5c1ab7d"}}
  :aliases
