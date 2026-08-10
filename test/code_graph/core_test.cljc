@@ -5,6 +5,53 @@
             [kotobase.local :as local]
             [kotobase.store :as store]))
 
+;; --- identities ------------------------------------------------------------
+;; These were "bafyplan", "bafyartifact" and so on: readable labels that are
+;; not CIDs. `kotoba.abi.contract/cid?` used to be `#"b.+"`, so they passed —
+;; and a fixture that cannot be an identity cannot prove the contract accepts
+;; one (abi 32ee84b, com-junkawasaki ADR-2608100500).
+;;
+;; The labels survive because they are what makes the tests readable. Each is
+;; now a real CIDv1, derived so the value is reproducible rather than magic:
+;;
+;;   cidv1-raw(sha2-256("code-graph/" + label))
+;;
+;; Namespacing by repository is deliberate: two suites sharing a fixture value
+;; would hide a substitution bug where one identity is accepted for another.
+(def ^:private cids
+  {"approval" "bafkreiebynhcan3uxiiji676mztphnzgzd2kf5zfwzql4xiho5fnme2yhe"
+   "artifact" "bafkreif2troau666c5yrhctyx6zvnf72bav5nbv7allaw7sgokbxj3ig3y"
+   "bad" "bafkreihamokddm4t4azng4pamr4owtmx33dcncb4tz4f44zvinmdgghyqm"
+   "basis" "bafkreicx3wlqywmgdpzqw2mbr37kuabpqypsvii6jwx4u4ozpt26ixqcn4"
+   "closure" "bafkreidm42apmvc6oth7cbd5j43yr7bkvipgx5vpzudgr7aykehwp2st64"
+   "compiler" "bafkreicxnvwjtvj3qrvm6ad4gs2pnebmrjn54n5oyhtasq6smsxg2d5fdq"
+   "component" "bafkreieta4ex3d4zo2n4qwedy3raqmclprlhcnbtbbrpfzpjj4dspamq7m"
+   "decision" "bafkreid55zwp332sh3gzbyixjhjbipm4l4linepp24lyc5faw4qvwhhcvq"
+   "envelope" "bafkreif6yueiofwqjs3usscjqtpnwjbyzvmzetgzgsxbqbp764ugbqw4za"
+   "grant" "bafkreicj34remcxnwvhms4x4o3svj4gwyfbirhxwtdb7hwajvbfsnnczda"
+   "hostreceipt" "bafkreifezej3cnlheqjxtoipesqmbcjyydrdybdcbk74ouav3hsga67cku"
+   "input" "bafkreic4txlheghwhobe4ompl77qg4fwwirrqu5qwht2xsxxto2rtjttda"
+   "lock" "bafkreihi4qman4f7c4cs7pwzm3tkif6v6gni2xslixgq3uhmgxzajo2cxq"
+   "other" "bafkreihmyfvkh3nzuikpsnokcvmczkxpomuk6xjvyrqohnfmbbs7oiufni"
+   "otherbasis" "bafkreihpdwifi3oq6fakrqtktn3bxnb5fe7otxxzsjrapy44qchpiqkjn4"
+   "outcome" "bafkreih2e7yfnwtsrtf6s7b6ihghew6nvd3vz4rld4wgtw3mbrletcq3de"
+   "plan" "bafkreigfnpkjvstmdmva2nf4zjzwfadgnhwpjhuz2q6g6jft4mmjnd5mu4"
+   "policy" "bafkreicqt7dkovx3dpminhdkwnaropdkdsqo2o5v3kceautgnv6xkei6ru"
+   "portableexecutionidentity" "bafkreifd6gk35ov2nbxryumjsi63h22wutdphq7hfkqa5xw5w5saasqjga"
+   "query" "bafkreighzffyf2ggta5qkycywzgjhnclwxb32oehwyhuup4c7lc2k64o2q"
+   "result" "bafkreibkfdxr24vg4eh3uxh5vqgebspsuhsxklripokxba6veuzb6vcmzu"
+   "runtime" "bafkreiay7r6ydfsmalic5okam763lqn6653tvwobzysxyxxbz4dphsr64m"
+   "secret" "bafkreihgka7t3qlccuypcrwjx6nxtk3sqxewtrz3ry5ithkzijcod2xtra"
+   "world" "bafkreia2fl7nrp5tltjbbbq55ufepy4otjwayyl3lqfjstpengdq7pkhya"})
+
+(defn- cid
+  "The real CIDv1 fixture for `label`. Unknown labels fail loudly rather than
+  returning nil, which `cid?` would then reject with a confusing message."
+  [label]
+  (or (get cids label)
+      (throw (ex-info "no CID fixture for label" {:label label}))))
+
+
 (defn verify [cid block] (= cid (:cid block)))
 
 (defn xrpc [backend]
@@ -18,18 +65,18 @@
 (defn record [cid deps effects]
   {:cid cid :block {:cid cid} :dependency-cids deps :effects effects})
 
-(def portable-cid "bafyportableexecutionidentity")
+(def portable-cid (cid "portableexecutionidentity"))
 
 (defn portable-identity []
   {:format :kotoba.execution-identity/v1
-   :plan-cid "bafyplan" :code-closure-cid "bafyclosure"
-   :artifact-cid "bafyartifact" :compiler-contract "bafycompiler"
-   :component-cid "bafycomponent" :wit-world-cid "bafyworld"
-   :package-lock-cid "bafylock" :policy-cid "bafypolicy"
-   :policy-decision-cid "bafydecision" :db-basis "bafybasis"
-   :grant-cids ["bafygrant"] :approval-cids ["bafyapproval"]
-   :runtime-identity "bafyruntime" :input-cid "bafyinput"
-   :outcome-cid "bafyoutcome" :host-receipt-cids ["bafyhostreceipt"]})
+   :plan-cid (cid "plan") :code-closure-cid (cid "closure")
+   :artifact-cid (cid "artifact") :compiler-contract (cid "compiler")
+   :component-cid (cid "component") :wit-world-cid (cid "world")
+   :package-lock-cid (cid "lock") :policy-cid (cid "policy")
+   :policy-decision-cid (cid "decision") :db-basis (cid "basis")
+   :grant-cids [(cid "grant")] :approval-cids [(cid "approval")]
+   :runtime-identity (cid "runtime") :input-cid (cid "input")
+   :outcome-cid (cid "outcome") :host-receipt-cids [(cid "hostreceipt")]})
 
 (deftest definitions-are-verified-indexed-and-queryable
   (let [s (local/local-store)]
@@ -147,13 +194,13 @@
         record {:cid portable-cid :block {:cid portable-cid} :identity identity}]
     (is (= record (code/put-execution-identity! s verify record)))
     (is (= record (code/execution-identity s portable-cid)))
-    (is (some #(= [:db/add portable-cid :execution-identity/db-basis "bafybasis"]
+    (is (some #(= [:db/add portable-cid :execution-identity/db-basis (cid "basis")]
                   (:datom %))
               (store/-read s code/datom-stream 0)))
     (is (= :execution-identity/invalid-descriptor
            (:problem (ex-data
                       (try (code/put-execution-identity!
-                            s verify (assoc record :cid "bafybad" :block {:cid "bafybad"}
+                            s verify (assoc record :cid (cid "bad") :block {:cid (cid "bad")}
                                             :identity (assoc identity :unknown true)))
                            (catch #?(:clj clojure.lang.ExceptionInfo
                                      :cljs cljs.core.ExceptionInfo) e e))))))))
@@ -162,19 +209,19 @@
   (let [s (local/local-store)
         identity (portable-identity)
         identity-record {:cid portable-cid :block {:cid portable-cid} :identity identity}
-        receipt {:cid "bafyhostreceipt" :block {:cid "bafyhostreceipt"}
+        receipt {:cid (cid "hostreceipt") :block {:cid (cid "hostreceipt")}
                  :execution-identity-cid portable-cid
-                 :query-cid "bafyquery" :result-cid "bafyresult"
-                 :basis "bafybasis" :policy-cid "bafypolicy"
+                 :query-cid (cid "query") :result-cid (cid "result")
+                 :basis (cid "basis") :policy-cid (cid "policy")
                  :tenant "acme" :purpose :payment-review :resource-cids ["INV-42"]}]
     (code/put-execution-identity! s verify identity-record)
     (is (= receipt (code/put-query-receipt! s verify receipt)))
-    (is (= receipt (code/query-receipt s "bafyhostreceipt")))
+    (is (= receipt (code/query-receipt s (cid "hostreceipt"))))
     (is (= :query-receipt/basis-mismatch
            (:problem (ex-data
                       (try (code/put-query-receipt!
-                            s verify (assoc receipt :cid "bafyother" :block {:cid "bafyother"}
-                                            :basis "bafyotherbasis"))
+                            s verify (assoc receipt :cid (cid "other") :block {:cid (cid "other")}
+                                            :basis (cid "otherbasis")))
                            (catch #?(:clj clojure.lang.ExceptionInfo
                                      :cljs cljs.core.ExceptionInfo) e e))))))))
 
@@ -259,20 +306,25 @@
 
 (deftest sealed-views-hash-qualified-names-and-three-way-merges
   (let [s (local/local-store)
-        sealed (assoc (record "bafysecret" [] ["graph-read"])
-                      :visibility :sealed :sealed-block-cid "bafyenvelope")]
+        sealed (assoc (record (cid "secret") [] ["graph-read"])
+                      :visibility :sealed :sealed-block-cid (cid "envelope"))]
     (code/put-definition! s verify sealed)
-    (let [hidden (code/definition-view s "bafysecret" (constantly false))]
-      (is (= "bafyenvelope" (:code.definition/sealed-block-cid hidden)))
+    (let [hidden (code/definition-view s (cid "secret") (constantly false))]
+      (is (= (cid "envelope") (:code.definition/sealed-block-cid hidden)))
       (is (nil? (:code.definition/block hidden)))
       (is (nil? (:code.definition/effects hidden))))
     (is (some? (:code.definition/block
-                (code/definition-view s "bafysecret" (constantly true)))))
+                (code/definition-view s (cid "secret") (constantly true)))))
     (code/put-namespace-commit!
      s verify {:cid "cid-ns" :block {:cid "cid-ns"} :parents []
-               :bindings {"app/main" "bafysecret"}})
-    (is (= "bafysecret"
-           (code/resolve-qualified-name s "cid-ns" "app/main#bafy")))
+               :bindings {"app/main" (cid "secret")}})
+    ;; The qualifier is a PREFIX of the bound identity. It used to be the
+    ;; literal "bafy", which was a prefix only because the fixture was a fake
+    ;; CID beginning with those letters. Taking the prefix from the fixture
+    ;; says what the test means and cannot drift away from it.
+    (is (= (cid "secret")
+           (code/resolve-qualified-name
+            s "cid-ns" (str "app/main#" (subs (cid "secret") 0 10)))))
     (is (= :namespace/hash-qualifier-mismatch
            (:problem
             (ex-data
