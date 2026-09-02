@@ -11,8 +11,13 @@
                                         :git/sha "b4ff9d8a56263030bc92539b101e1eeb2dbfce39"}
         io.github.kotoba-lang/abi {:git/url "https://github.com/kotoba-lang/abi.git"
                                    :git/sha "32ee84b2efc92478c846629c8d8319280eed506c"}
+        ;; Advanced from 142f3f7 so that `kotobase.execution-contract` and
+        ;; `kotobase.evidence` are available: a query receipt now embeds the
+        ;; version 1 ExecutionReceipt it is evidence of, and this repository
+        ;; registers its own evidence planes because kotobase cannot carry a
+        ;; carrier for records it does not write.
         io.github.kotoba-lang/kotobase {:git/url "https://github.com/kotoba-lang/kotobase.git"
-                                        :git/sha "142f3f7ef8208a270e21d9cce748ceffe5c1ab7d"}}
+                                        :git/sha "f78ddd513bbb85c8fad020ecc31cd96171d9d1e7"}}
  :aliases
  {:cljs-test {:extra-paths ["test"]
               :extra-deps {org.clojure/clojurescript {:mvn/version "1.11.132"}}}
