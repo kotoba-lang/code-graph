@@ -7,6 +7,7 @@
   (:require [clojure.string :as str]
             [kotoba.abi.contract :as abi]
             [kotoba.security.effect :as effect]
+            [kotobase.execution-contract :as execution-contract]
             [kotobase.store :as store]))
 
 (def definitions "code.definitions")
@@ -417,7 +418,7 @@
 
 (def query-receipt-keys
   #{:cid :block :execution-identity-cid :query-cid :result-cid
-    :basis :policy-cid :tenant :purpose :resource-cids})
+    :basis :policy-cid :tenant :purpose :resource-cids :execution-receipt})
 
 (defn put-query-receipt!
   "Persist a content-addressed receipt for an authorized data read.
@@ -426,9 +427,23 @@
   an execution identity already lists this receipt CID, so including the
   reverse link in the hashed block would create a CID cycle.  Kotobase stores
   that reverse association as an immutable datom after verifying both sides.
-  Raw query results are addressed by RESULT-CID and never projected here."
+  Raw query results are addressed by RESULT-CID and never projected here.
+
+  EXECUTION-RECEIPT is the version 1 `kotobase.execution-contract` record the
+  read produced, embedded whole. It used to be absent, which made this plane
+  five fields short of being evidence of a query execution — `kotobase.
+  evidence` measured that — and the fix was never a better adapter. A caller
+  that cannot supply one has not run a governed execution, and a receipt
+  about a read nobody can re-derive is a claim rather than a record.
+
+  It is embedded rather than restated field by field, so there is one shape
+  and no second vocabulary, and it is cross-checked against the facts this
+  record already carries: the result root must be RESULT-CID and the plan
+  digest must be the identity's plan CID, or the two halves describe
+  different executions."
   [s verify {:keys [cid block execution-identity-cid query-cid result-cid
-                    basis policy-cid tenant purpose resource-cids] :as receipt}]
+                    basis policy-cid tenant purpose resource-cids
+                    execution-receipt] :as receipt}]
   (require-value #(= query-receipt-keys (set (keys %))) receipt
                  :query-receipt/invalid-record {})
   (doseq [[value problem] [[cid :query-receipt/cid-required]
@@ -443,6 +458,9 @@
   (require-value #(and (vector? %) (seq %) (every? string? %)) resource-cids
                  :query-receipt/resources-invalid {})
   (require-value true? (boolean (verify cid block)) :query-receipt/cid-mismatch {:cid cid})
+  ;; validated by the contract itself rather than field by field here: a
+  ;; second copy of an exact key set drifts the moment either is edited
+  (execution-contract/validate-receipt! execution-receipt)
   (let [identity-record (execution-identity s execution-identity-cid)
         identity (:identity identity-record)]
     (require-value some? identity-record :query-receipt/execution-identity-missing
@@ -451,6 +469,15 @@
                    {:basis basis :identity-basis (:db-basis identity)})
     (require-value (fn [_] (= policy-cid (:policy-cid identity))) identity :query-receipt/policy-mismatch
                    {:policy-cid policy-cid :identity-policy-cid (:policy-cid identity)})
+    (require-value (fn [_] (= result-cid (:result/root execution-receipt)))
+                   execution-receipt :query-receipt/result-root-mismatch
+                   {:receipt result-cid
+                    :execution-receipt (:result/root execution-receipt)})
+    (require-value (fn [_] (= (:plan-cid identity)
+                              (:query/plan-digest execution-receipt)))
+                   execution-receipt :query-receipt/plan-digest-mismatch
+                   {:identity (:plan-cid identity)
+                    :execution-receipt (:query/plan-digest execution-receipt)})
     (require-value (fn [_] (contains? (set (:host-receipt-cids identity)) cid))
                    identity
                    :query-receipt/not-bound-by-identity

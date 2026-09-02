@@ -1,6 +1,8 @@
 (ns code-graph.core-test
   (:require [clojure.test :refer [deftest is testing]]
             [code-graph.core :as code]
+            [code-graph.evidence :as evidence]
+            [kotobase.evidence :as lift]
             [kotobase.kotobase :as remote]
             [kotobase.local :as local]
             [kotobase.store :as store]))
@@ -66,6 +68,25 @@
   {:cid cid :block {:cid cid} :dependency-cids deps :effects effects})
 
 (def portable-cid (cid "portableexecutionidentity"))
+
+(defn execution-receipt
+  "The version 1 `kotobase.execution-contract` record a governed read
+  produces, as a query receipt now has to embed."
+  []
+  {:receipt/version 1
+   :request/digest (cid "envelope")
+   :execution/manifest (cid "portableexecutionidentity")
+   :query/plan-digest (cid "plan")
+   :authority/decision :allow
+   :result/root (cid "result")
+   :cost {:dependent-hops 1 :requests 2 :bytes 512 :cache-profile :cold}
+   :implementation/build "code-graph@test"
+   :signature "sig"})
+
+(defn- problem-of [f]
+  (:problem (ex-data (try (f) nil
+                          (catch #?(:clj clojure.lang.ExceptionInfo
+                                    :cljs cljs.core.ExceptionInfo) e e)))))
 
 (defn portable-identity []
   {:format :kotoba.execution-identity/v1
@@ -213,17 +234,64 @@
                  :execution-identity-cid portable-cid
                  :query-cid (cid "query") :result-cid (cid "result")
                  :basis (cid "basis") :policy-cid (cid "policy")
-                 :tenant "acme" :purpose :payment-review :resource-cids ["INV-42"]}]
+                 :tenant "acme" :purpose :payment-review :resource-cids ["INV-42"]
+                 :execution-receipt (execution-receipt)}]
     (code/put-execution-identity! s verify identity-record)
     (is (= receipt (code/put-query-receipt! s verify receipt)))
     (is (= receipt (code/query-receipt s (cid "hostreceipt"))))
     (is (= :query-receipt/basis-mismatch
-           (:problem (ex-data
-                      (try (code/put-query-receipt!
-                            s verify (assoc receipt :cid (cid "other") :block {:cid (cid "other")}
-                                            :basis (cid "otherbasis")))
-                           (catch #?(:clj clojure.lang.ExceptionInfo
-                                     :cljs cljs.core.ExceptionInfo) e e))))))))
+           (problem-of
+            #(code/put-query-receipt!
+              s verify (assoc receipt :cid (cid "other") :block {:cid (cid "other")}
+                              :basis (cid "otherbasis"))))))))
+
+(deftest a-query-receipt-carries-the-execution-it-is-evidence-of
+  (let [s (local/local-store)
+        identity (portable-identity)
+        identity-record {:cid portable-cid :block {:cid portable-cid}
+                         :identity identity}
+        receipt {:cid (cid "hostreceipt") :block {:cid (cid "hostreceipt")}
+                 :execution-identity-cid portable-cid
+                 :query-cid (cid "query") :result-cid (cid "result")
+                 :basis (cid "basis") :policy-cid (cid "policy")
+                 :tenant "acme" :purpose :payment-review :resource-cids ["INV-42"]
+                 :execution-receipt (execution-receipt)}]
+    (code/put-execution-identity! s verify identity-record)
+    (testing "a read that produced no version 1 receipt is not recorded"
+      ;; this plane used to be five fields short of being evidence of a query
+      ;; execution. A caller that cannot supply one has not run a governed
+      ;; execution, and the fix was never a better adapter
+      (is (= :query-receipt/invalid-record
+             (problem-of #(code/put-query-receipt!
+                           s verify (dissoc receipt :execution-receipt)))))
+      (is (= :invalid-keys
+             (:kotobase.execution-contract/reason
+              (ex-data
+               (try (code/put-query-receipt!
+                     s verify (update receipt :execution-receipt
+                                      dissoc :signature))
+                    (catch #?(:clj clojure.lang.ExceptionInfo
+                              :cljs cljs.core.ExceptionInfo) e e)))))))
+    (testing "and the two halves must describe the same execution"
+      (is (= :query-receipt/result-root-mismatch
+             (problem-of #(code/put-query-receipt!
+                           s verify (assoc-in receipt
+                                              [:execution-receipt :result/root]
+                                              (cid "other"))))))
+      (is (= :query-receipt/plan-digest-mismatch
+             (problem-of #(code/put-query-receipt!
+                           s verify (assoc-in receipt
+                                              [:execution-receipt
+                                               :query/plan-digest]
+                                              (cid "other")))))))
+    (testing "so its distance to the contract is nothing"
+      ;; the measurement `kotobase.evidence` takes, on this plane, now that
+      ;; the record carries what it was short of
+      (code/put-query-receipt! s verify receipt)
+      (let [source {:receipt receipt :execution-identity identity}]
+        (is (= #{} (lift/missing evidence/query-plane source)))
+        (is (= (:execution-receipt receipt)
+               (lift/lift evidence/query-plane source {})))))))
 
 (deftest missing-block-sync-and-artifact-reuse
   (let [source (local/local-store)

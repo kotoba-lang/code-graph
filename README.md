@@ -15,8 +15,9 @@ implementation and verification stays mandatory on admission.
 
 | ns | role |
 |---|---|
-| `code-graph.core` | the complete synchronous API (668 LOC) |
-| `code-graph.async` | promise/completion-aware facade over the same API (141 LOC) |
+| `code-graph.core` | the complete synchronous API |
+| `code-graph.async` | promise/completion-aware facade over the same API |
+| `code-graph.evidence` | the `kotobase.evidence` planes for the records here |
 
 `code-graph.async/run!` materializes the graph through a store whose methods may
 return host async values, runs any existing `code-graph.core` operation against a
@@ -67,3 +68,26 @@ clojure -M:cljs-test -m cljs.main \
   -c code-graph.async-node
 node target/async-node.js
 ```
+
+## Evidence
+
+A **query receipt** embeds the version 1 `kotobase.execution-contract` record
+the read produced, whole. It used to carry none, which left this plane five
+fields short of being evidence of a query execution —
+`kotobase.evidence` measures that distance — and the fix was never a better
+adapter: a caller that cannot supply a receipt has not run a governed
+execution, and a record about a read nobody can re-derive is a claim rather
+than evidence. The embedded receipt is cross-checked against the facts the
+record already carries: its result root must be the receipt's `:result-cid`
+and its plan digest the identity's `:plan-cid`, or the two halves describe
+different executions.
+
+`code-graph.evidence` defines the two planes for the records written here and
+hands them to `kotobase.evidence`, which lifts them under one rule: the
+supplement must be exactly the fields the source does not carry. Those
+carriers live here rather than in kotobase because this library depends on
+kotobase — a carrier there could only be a dependency cycle or a copy of these
+shapes, and a copy of a shape is what that namespace exists to stop being
+necessary.
+
+`query-plane`'s supplement is now empty.
