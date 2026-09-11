@@ -55,15 +55,15 @@ plane is tracked under ADR-2607201600 M6.
 ## Test
 
 ```bash
-clojure -M -m kotoba.security.adoption   # shared security adoption
-clojure -M:test                          # JVM
-clojure -M:lint
+kbb -M -m kotoba.security.adoption   # shared security adoption
+kbb -M:test                          # JVM
+kbb -M:lint
 ```
 
 ClojureScript promise path:
 
 ```bash
-clojure -M:cljs-test -m cljs.main \
+kbb -M:cljs-test -m cljs.main \
   -co '{:target :nodejs :output-to "target/async-node.js" :optimizations :none}' \
   -c code-graph.async-node
 node target/async-node.js
