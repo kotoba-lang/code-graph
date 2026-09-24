@@ -1,5 +1,5 @@
 (ns code-graph.core-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [code-graph.core :as code]
             [code-graph.evidence :as evidence]
             [kotobase.evidence :as lift]
