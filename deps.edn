@@ -28,7 +28,7 @@
         ;; registers its own evidence planes because kotobase cannot carry a
         ;; carrier for records it does not write.
         io.github.kotoba-lang/kotobase {:git/url "https://github.com/kotoba-lang/kotobase.git"
-                                        :git/sha "f78ddd513bbb85c8fad020ecc31cd96171d9d1e7"}}
+                                        :git/sha "719839bd993ad50b2367e17371b10acbaefe9423"}}
  :aliases
  {:cljs-test {:extra-paths ["test"]
               :extra-deps {org.clojure/clojurescript {:mvn/version "1.11.132"}}}
