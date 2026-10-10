@@ -5,7 +5,8 @@
   verification is host-injected as `(verify cid block)`, keeping kotobase-clj
   portable while making verification mandatory on admission."
   (:require [kotoba.lang.text :as str]
-            [kotoba.abi.contract :as abi]
+            [kotoba.abi.component :as abi]
+            [kotoba.core.execution :as execution]
             [kotoba.security.effect :as effect]
             [kotobase.execution-contract :as execution-contract]
             [kotobase.store :as store]))
@@ -383,7 +384,11 @@
   (require-value some? block :execution-identity/block-required {:cid cid})
   (require-value true? (boolean (verify cid block))
                  :execution-identity/cid-mismatch {:cid cid})
-  (require-value abi/valid-execution-identity? identity
+  (require-value (fn [value]
+                   (case (:format value)
+                     :kotoba.execution-identity/v1 (abi/valid-execution-identity? value)
+                     :kotoba.execution-identity/v2 (execution/valid-execution-identity? value)
+                     false)) identity
                  :execution-identity/invalid-descriptor {:cid cid})
   (let [record {:cid cid :block block :identity identity}]
     (if-let [existing (store/-get s execution-identities cid)]
@@ -396,6 +401,7 @@
                 [[:execution-identity/plan-cid (:plan-cid identity)]
                  [:execution-identity/code-closure-cid (:code-closure-cid identity)]
                  [:execution-identity/artifact-cid (:artifact-cid identity)]
+                 [:execution-identity/profile-binding-cid (:profile-binding-cid identity)]
                  [:execution-identity/component-cid (:component-cid identity)]
                  [:execution-identity/wit-world-cid (:wit-world-cid identity)]
                  [:execution-identity/policy-cid (:policy-cid identity)]

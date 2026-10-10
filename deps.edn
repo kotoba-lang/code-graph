@@ -8,6 +8,8 @@
  ;; explicit and gate-visible instead of internal; it does not remove it. This
  ;; repo is on the ADR-2607201600 M6 migration list (wave: docs+streams mixed).
  :deps {
+        io.github.kotoba-lang/kotoba-core-contracts {:git/url "https://github.com/kotoba-lang/kotoba-core-contracts.git" :git/sha "7d6a1183134fac7e8e2427f87d4250422b330563"}
+
         ;; kotoba.test (clojure.test-compatible surface), not clojure.test --
         ;; scripts/migrate-clojure-test-to-kotoba-test.cljk. Explicit floor.
         io.github.kotoba-lang/test {:git/url "https://github.com/kotoba-lang/test.git"
@@ -19,7 +21,7 @@
        io.github.kotoba-lang/security {:git/url "https://github.com/kotoba-lang/security.git"
                                         :git/sha "b4ff9d8a56263030bc92539b101e1eeb2dbfce39"}
         io.github.kotoba-lang/abi {:git/url "https://github.com/kotoba-lang/abi.git"
-                                   :git/sha "32ee84b2efc92478c846629c8d8319280eed506c"}
+                                   :git/sha "4dd0b7b9898cec5432bbe60c2904c1546e5f524a"}
         ;; Advanced from 142f3f7 so that `kotobase.execution-contract` and
         ;; `kotobase.evidence` are available: a query receipt now embeds the
         ;; version 1 ExecutionReceipt it is evidence of, and this repository

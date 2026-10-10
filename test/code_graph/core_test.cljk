@@ -21,7 +21,9 @@
 ;; Namespacing by repository is deliberate: two suites sharing a fixture value
 ;; would hide a substitution bug where one identity is accepted for another.
 (def ^:private cids
-  {"approval" "bafkreiebynhcan3uxiiji676mztphnzgzd2kf5zfwzql4xiho5fnme2yhe"
+  {"portableexecutionidentity-v2" "bafkreigpg7hvow3fhteyyzoqrkb5dfgivrr5bj4evz3c2vwgzcyalqi224"
+   "profile-binding" "bafkreieitik3i64lcc7sfgfw4lqrehtj6atbrlymspxm2zt7sj4mqihel4"
+   "approval" "bafkreiebynhcan3uxiiji676mztphnzgzd2kf5zfwzql4xiho5fnme2yhe"
    "artifact" "bafkreif2troau666c5yrhctyx6zvnf72bav5nbv7allaw7sgokbxj3ig3y"
    "bad" "bafkreihamokddm4t4azng4pamr4owtmx33dcncb4tz4f44zvinmdgghyqm"
    "basis" "bafkreicx3wlqywmgdpzqw2mbr37kuabpqypsvii6jwx4u4ozpt26ixqcn4"
@@ -433,3 +435,26 @@
     (is (empty? (code/retention-roots s)))
     (is (= [:pin :revoke]
            (mapv :op (store/-read s code/retention-stream 0))))))
+
+(deftest neutral-v2-identities-persist-an-opaque-target-binding
+  (let [s (local/local-store)
+        identity (-> (portable-identity)
+                     (dissoc :component-cid :wit-world-cid)
+                     (assoc :format :kotoba.execution-identity/v2
+                            :profile-binding-cid (cid "profile-binding")))
+        record {:cid (cid "portableexecutionidentity-v2") :block {:cid (cid "portableexecutionidentity-v2")} :identity identity}]
+    (is (= record (code/put-execution-identity! s verify record)))
+    (is (= identity (:identity (code/execution-identity s (cid "portableexecutionidentity-v2")))))
+    (let [datoms (map :datom (store/-read s code/datom-stream 0))]
+      (is (some #(= [:db/add (cid "portableexecutionidentity-v2") :execution-identity/profile-binding-cid
+                     (cid "profile-binding")] %) datoms))
+      (is (not-any? #(contains? #{:execution-identity/component-cid
+                                 :execution-identity/wit-world-cid} (nth % 2)) datoms)))
+    (doseq [bad [(assoc identity :component-cid (cid "component"))
+                (dissoc identity :profile-binding-cid)
+                (assoc identity :format :kotoba.execution-identity/v999)]]
+      (is (= :execution-identity/invalid-descriptor
+             (:problem (ex-data
+                        (try (code/put-execution-identity!
+                              s verify (assoc record :identity bad))
+                             (catch #?(:clj Exception :cljs :default) e e)))))))))
